@@ -4,44 +4,43 @@ const { exec } = require("child_process");
 const path = require("path");
 
 const app = express();
-app.use(cors());
-app.use(express.json());
+const PORT = process.env.PORT || 3000;
 
-// URL do sistema BTR
+// Configuração do BTR (Alvo)
 const BTR_URL = process.env.RAILWAY_URL || "https://btr-production-d856.up.railway.app";
 
-// Serve a interface HTML
+app.use(cors());
+app.use(express.json());
+app.use(express.static(__dirname)); // Serve o index.html automaticamente
+
+// Rota para a interface
 app.get("/", (req, res) => {
     res.sendFile(path.join(__dirname, "index.html"));
 });
 
-// Execução de comandos
+// Endpoint de execução
 app.post("/run", (req, res) => {
-    const userCommand = req.body.command;
-    
-    if (!userCommand) {
-        return res.status(400).json({ error: "Comando vazio" });
+    const { command } = req.body;
+    if (!command) return res.status(400).json({ error: "Comando vazio" });
+
+    let finalCommand = command;
+    if (command.includes("opencode logs") && !command.includes("--url")) {
+        finalCommand = `${command} --url ${BTR_URL}`;
     }
 
-    let finalCommand = userCommand;
-    
-    // Injeção automática da URL para o comando logs
-    if (userCommand.includes("opencode logs") && !userCommand.includes("--url")) {
-        finalCommand = `${userCommand} --url ${BTR_URL}`;
-    }
-
-    console.log(`> Executando: ${finalCommand}`);
+    console.log(`Executando: ${finalCommand}`);
 
     exec(finalCommand, (error, stdout, stderr) => {
         res.json({
             output: stdout || "",
             error: stderr || "",
-            exitCode: error ? error.code : 0
+            code: error ? error.code : 0
         });
     });
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`[OK] Terminal Bridge Online na porta ${PORT}`);
+// Inicia o servidor em 0.0.0.0 para o Railway encontrar
+app.listen(PORT, "0.0.0.0", () => {
+    console.log(`>>> Bridge Online na porta ${PORT}`);
+    console.log(`>>> Monitorando BTR: ${BTR_URL}`);
 });
