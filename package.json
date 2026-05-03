@@ -1,5 +1,5 @@
 {
-  "name": "opencode-api",
+  "name": "opencode-bridge",
   "version": "1.0.0",
   "main": "server.js",
   "dependencies": {
