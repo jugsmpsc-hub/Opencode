@@ -1,0 +1,130 @@
+```html
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenCode Terminal Bridge</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body { background-color: #020617; font-family: 'Inter', sans-serif; }
+        .terminal-font { font-family: 'Fira Code', monospace; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
+        .prompt-symbol { color: #3b82f6; }
+    </style>
+</head>
+<body class="text-slate-300 min-h-screen p-4 md:p-8 flex flex-col items-center">
+
+    <div class="w-full max-w-5xl space-y-6">
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-center bg-slate-900/40 p-6 rounded-2xl border border-slate-800 backdrop-blur-sm">
+            <div>
+                <h1 class="text-xl font-bold text-white flex items-center gap-2">
+                    <span class="p-2 bg-blue-600 rounded-lg">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    </span>
+                    OpenCode Bridge
+                </h1>
+                <p class="text-xs text-slate-500 mt-1 uppercase tracking-widest font-semibold">Terminal Interface</p>
+            </div>
+            <div class="mt-4 md:mt-0 text-right">
+                <div class="text-[10px] text-slate-500 uppercase font-bold">Monitorando Alvo (BTR)</div>
+                <div class="text-blue-400 text-sm font-mono">btr-production-d856.up.railway.app</div>
+            </div>
+        </header>
+
+        <!-- Terminal Layout -->
+        <main class="bg-[#050a18] rounded-2xl border border-slate-800 shadow-2xl flex flex-col overflow-hidden h-[70vh]">
+            <!-- Terminal Output -->
+            <div id="terminal-screen" class="flex-1 p-6 overflow-y-auto terminal-font text-sm custom-scrollbar">
+                <div class="text-slate-500 italic mb-4">Conexão estabelecida. Pronto para gerenciar o BTR.</div>
+            </div>
+
+            <!-- Terminal Input -->
+            <div class="p-4 bg-slate-900/50 border-t border-slate-800 flex items-center gap-3">
+                <span class="prompt-symbol font-bold terminal-font">$</span>
+                <input type="text" id="commandInput" autofocus autocomplete="off"
+                    class="flex-1 bg-transparent border-none focus:ring-0 text-blue-300 terminal-font"
+                    placeholder="Digite um comando (ex: opencode logs)">
+                <div id="status-spinner" class="hidden">
+                    <svg class="animate-spin h-5 w-5 text-blue-500" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </div>
+            </div>
+        </main>
+
+        <!-- Comandos Rápidos -->
+        <div class="flex flex-wrap gap-2 justify-center">
+            <button onclick="sendQuick('opencode --help')" class="px-3 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors border border-slate-700">--help</button>
+            <button onclick="sendQuick('opencode logs')" class="px-3 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors border border-slate-700 text-blue-400">Ver Logs BTR</button>
+            <button onclick="sendQuick('opencode status')" class="px-3 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors border border-slate-700">Status</button>
+            <button onclick="sendQuick('ls -la')" class="px-3 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors border border-slate-700 text-slate-500">Listar Arquivos</button>
+        </div>
+    </div>
+
+    <script>
+        const input = document.getElementById('commandInput');
+        const screen = document.getElementById('terminal-screen');
+        const spinner = document.getElementById('status-spinner');
+
+        input.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                runCommand(input.value);
+                input.value = '';
+            }
+        });
+
+        async function runCommand(cmd) {
+            if (!cmd.trim()) return;
+
+            // Log local do comando
+            appendLine(`<span class="prompt-symbol font-bold">$</span> <span class="text-white">${cmd}</span>`);
+            spinner.classList.remove('hidden');
+
+            try {
+                const res = await fetch('/run', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ command: cmd })
+                });
+                
+                const data = await res.json();
+                
+                if (data.output) {
+                    appendLine(`<pre class="text-slate-300 mt-1">${escapeHTML(data.output)}</pre>`);
+                }
+                if (data.error) {
+                    appendLine(`<pre class="text-red-400 mt-1">${escapeHTML(data.error)}</pre>`);
+                }
+            } catch (err) {
+                appendLine(`<span class="text-red-500 font-bold">[ERRO DE REDE]</span> <span class="text-red-400">Não foi possível comunicar com o servidor.</span>`);
+            } finally {
+                spinner.classList.add('hidden');
+                screen.scrollTop = screen.scrollHeight;
+            }
+        }
+
+        function sendQuick(cmd) {
+            runCommand(cmd);
+        }
+
+        function appendLine(html) {
+            const div = document.createElement('div');
+            div.className = 'mb-2';
+            div.innerHTML = html;
+            screen.appendChild(div);
+            screen.scrollTop = screen.scrollHeight;
+        }
+
+        function escapeHTML(str) {
+            return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[m]));
+        }
+    </script>
+</body>
+</html>
+
+```
