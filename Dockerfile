@@ -1,16 +1,14 @@
-# Usa a imagem oficial do OpenCode
-FROM ghcr.io/anomalyco/opencode:latest
+FROM debian:bullseye-slim
 
-# Instala Node.js para rodar o servidor
-RUN apt-get update && apt-get install -y nodejs npm
+# Instala Node.js e npm
+RUN apt-get update && apt-get install -y nodejs npm git curl
 
-# Copia arquivos do servidor
+# Instala OpenCode
+RUN curl -fsSL https://opencode.ai/install | bash
+
 WORKDIR /app
 COPY package.json server.js ./
 RUN npm install
 
-# Porta exposta
 EXPOSE 3000
-
-# Comando de inicialização
 CMD ["node", "server.js"]
