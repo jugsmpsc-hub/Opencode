@@ -7,7 +7,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// URL do seu sistema BTR (pode ser alterada via painel do Railway)
+// URL do sistema BTR
 const BTR_URL = process.env.RAILWAY_URL || "https://btr-production-d856.up.railway.app";
 
 // Serve a interface HTML
@@ -23,8 +23,9 @@ app.post("/run", (req, res) => {
         return res.status(400).json({ error: "Comando vazio" });
     }
 
-    // Injeção automática da URL do BTR para comandos de logs
     let finalCommand = userCommand;
+    
+    // Injeção automática da URL para o comando logs
     if (userCommand.includes("opencode logs") && !userCommand.includes("--url")) {
         finalCommand = `${userCommand} --url ${BTR_URL}`;
     }
@@ -43,17 +44,4 @@ app.post("/run", (req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`[OK] Terminal Bridge Online na porta ${PORT}`);
-});        res.json({
-            output: stdout || "",
-            error: stderr || "",
-            exitCode: error ? error.code : 0,
-            targetUrl: BTR_URL
-        });
-    });
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Painel OpenCode rodando na porta ${PORT}`);
-    console.log(`Monitorando BTR em: ${BTR_URL}`);
 });
