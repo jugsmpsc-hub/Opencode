@@ -1,25 +1,31 @@
-FROM debian:bullseye-slim
+# Usamos Node 20 como base (mais estável e já vem com npm/curl/git)
+FROM node:20-bullseye
 
-# Instala Node.js e npm
-RUN apt-get update && apt-get install -y nodejs npm git curl
+# Evita prompts interativos durante a instalação
+ENV DEBIAN_FRONTEND=noninteractive
 
-# Instala OpenCode
+# Instala dependências básicas do sistema
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Instala o OpenCode usando o script oficial
 RUN curl -fsSL https://opencode.ai/install | bash
 
-# 3. Definir diretório de trabalho
+# Define o diretório de trabalho
 WORKDIR /app
 
-# 4. Copiar arquivos de dependências
+# Copia apenas os arquivos de pacotes primeiro (otimiza o cache do Docker)
 COPY package.json ./
-
-# 5. Instalar dependências (express, cors)
 RUN npm install
 
-# 6. Copiar código do servidor e interface
+# Copia o restante do código
 COPY server.js index.html ./
 
-# 7. Railway expõe a porta via variável PORT
+# A porta que o Railway vai usar
 EXPOSE 3000
 
-# 8. Rodar o servidor
+# Comando para iniciar o servidor
 CMD ["node", "server.js"]
